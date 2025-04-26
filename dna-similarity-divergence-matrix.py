@@ -8,7 +8,7 @@ Original file is located at
 """
 
 # ------------------------------------------
-# PASO 1: INSTALACIÓN DE DEPENDENCIAS
+# STEP 1: INSTALL DEPENDENCIES
 # ------------------------------------------
 !sudo apt update
 !sudo apt install -y clustalo
@@ -17,7 +17,7 @@ os.environ['PATH'] += os.pathsep + '/usr/bin'
 !pip install biopython numpy pandas matplotlib
 
 # ------------------------------------------
-# PASO 2: PROCESAMIENTO DE SECUENCIAS
+# STEP 2: SEQUENCE PROCESSING
 # ------------------------------------------
 from Bio.Align.Applications import ClustalOmegaCommandline
 from Bio import SeqIO
@@ -26,12 +26,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from google.colab import files
 
-# Subir archivo FASTA
+# Upload FASTA file
 uploaded = files.upload()
 input_file = next(iter(uploaded))
 output_file = "aligned.fasta"
 
-# Ejecutar Clustal Omega
+# Run Clustal Omega
 clustal_cline = ClustalOmegaCommandline(
     cmd='clustalo',
     infile=input_file,
@@ -41,109 +41,109 @@ clustal_cline = ClustalOmegaCommandline(
 )
 clustal_cline()
 
-# Procesar secuencias
+# Process sequences
 aligned_sequences = list(SeqIO.parse(output_file, "fasta"))
 n = len(aligned_sequences)
 ids = [str(i+1) for i in range(n)]
 name_mapping = {str(i+1): seq.id for i, seq in enumerate(aligned_sequences)}
 
 # ------------------------------------------
-# PASO 3: CÁLCULO DE MATRIZ
+# STEP 3: MATRIX CALCULATION
 # ------------------------------------------
-matriz = np.zeros((n, n))
+matrix = np.zeros((n, n))
 for i in range(n):
     seq_i = str(aligned_sequences[i].seq).upper()
     for j in range(n):
-        if i <= j:  # Calcular solo una vez
+        if i <= j:  # Calculate only once
             seq_j = str(aligned_sequences[j].seq).upper()
-            validas = sum(1 for a, b in zip(seq_i, seq_j) if a != '-' and b != '-')
-            coincidencias = sum(1 for a, b in zip(seq_i, seq_j) if a == b and a != '-')
-            similitud = round(coincidencias/validas * 100, 1) if validas > 0 else 0.0
-            matriz[i][j] = similitud
-            matriz[j][i] = 100 - similitud
+            valid = sum(1 for a, b in zip(seq_i, seq_j) if a != '-' and b != '-')
+            matches = sum(1 for a, b in zip(seq_i, seq_j) if a == b and a != '-')
+            similarity = round(matches/valid * 100, 1) if valid > 0 else 0.0
+            matrix[i][j] = similarity
+            matrix[j][i] = 100 - similarity
 
 # ------------------------------------------
-# PASO 4: GENERAR IMAGEN CON BORDES NUMERADOS
+# STEP 4: GENERATE IMAGE WITH NUMBERED BORDERS
 # ------------------------------------------
 plt.figure(figsize=(16, 14))
 ax = plt.gca()
 ax.axis('off')
 
-# Crear matriz extendida con bordes
-celdas_extendidas = []
+# Create extended matrix with borders
+extended_cells = []
 
-# 1. Fila superior con números
-fila_superior = [''] + ids + ['']
-celdas_extendidas.append(fila_superior)
+# 1. Top row with numbers
+top_row = [''] + ids + ['']
+extended_cells.append(top_row)
 
-# 2. Filas centrales
+# 2. Center rows
 for i in range(n):
-    fila = [ids[i]]  # Número izquierdo
+    row = [ids[i]]  # Left number
     for j in range(n):
         if i == j:
-            fila.append('')  # Diagonal negra
+            row.append('')  # Black diagonal
         else:
-            fila.append(f"{matriz[i][j]:.1f}")
-    fila.append(ids[i])  # Número derecho
-    celdas_extendidas.append(fila)
+            row.append(f"{matrix[i][j]:.1f}")
+    row.append(ids[i])  # Right number
+    extended_cells.append(row)
 
-# 3. Fila inferior con números
-fila_inferior = [''] + ids + ['']
-celdas_extendidas.append(fila_inferior)
+# 3. Bottom row with numbers
+bottom_row = [''] + ids + ['']
+extended_cells.append(bottom_row)
 
-# Crear tabla
-tabla = plt.table(
-    cellText=celdas_extendidas,
+# Create table
+table = plt.table(
+    cellText=extended_cells,
     loc='center',
     cellLoc='center',
     edges='closed'
 )
 
-# Formatear celdas
-for i in range(len(celdas_extendidas)):
-    for j in range(len(celdas_extendidas[0])):
-        celda = tabla[i, j]
-
-        # Bordes numéricos (primera y última fila/columna)
-        if i == 0 or i == len(celdas_extendidas)-1 or j == 0 or j == len(celdas_extendidas[0])-1:
-            celda.set_facecolor('#f8f8f8')
-            celda.set_text_props(fontweight='bold')
-
-        # Diagonal principal
+# Format cells
+for i in range(len(extended_cells)):
+    for j in range(len(extended_cells[0])):
+        cell = table[i, j]
+        
+        # Number borders (first and last row/column)
+        if i == 0 or i == len(extended_cells)-1 or j == 0 or j == len(extended_cells[0])-1:
+            cell.set_facecolor('#f8f8f8')
+            cell.set_text_props(fontweight='bold')
+        
+        # Main diagonal
         if 1 <= i <= n and 1 <= j <= n and (i-1) == (j-1):
-            celda.set_facecolor('#000000')
+            cell.set_facecolor('#000000')
 
-        # Tamaño de fuente
-        celda.set_fontsize(9 if (i != 0 and i != len(celdas_extendidas)-1) else 8)
+        # Font size
+        cell.set_fontsize(9 if (i != 0 and i != len(extended_cells)-1) else 8)
 
-# Ajustar tamaño
-tabla.auto_set_column_width([0, len(celdas_extendidas[0])-1])
-tabla.scale(1, 1.2)
+# Adjust size
+table.auto_set_column_width([0, len(extended_cells[0])-1])
+table.scale(1, 1.2)
 
-# Guardar imagen
-plt.savefig('matriz_bordeada.png', dpi=300, bbox_inches='tight')
+# Save image
+plt.savefig('bordered_matrix.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # ------------------------------------------
-# PASO 5: ARCHIVOS ADICIONALES
+# STEP 5: ADDITIONAL FILES
 # ------------------------------------------
-# Correspondencia
-with open("correspondencia.txt", "w") as f:
-    f.write("Número\tNombre Original\n")
-    for num, nombre in name_mapping.items():
-        f.write(f"{num}\t{nombre}\n")
+# Correspondence
+with open("correspondence.txt", "w") as f:
+    f.write("Number\tOriginal Name\n")
+    for num, name in name_mapping.items():
+        f.write(f"{num}\t{name}\n")
 
-# Datos numéricos
-pd.DataFrame(matriz, index=ids, columns=ids).to_csv("datos.csv", float_format="%.1f")
+# Numerical data
+pd.DataFrame(matrix, index=ids, columns=ids).to_csv("data.csv", float_format="%.1f")
 
 # ------------------------------------------
-# PASO 6: DESCARGAR RESULTADOS
+# STEP 6: DOWNLOAD RESULTS
 # ------------------------------------------
-files.download('matriz_bordeada.png')
-files.download('datos.csv')
-files.download('correspondencia.txt')
+files.download('bordered_matrix.png')
+files.download('data.csv')
+files.download('correspondence.txt')
 
-print("¡Proceso completado! Archivos generados:")
-print("- matriz_bordeada.png (Matriz con bordes numerados)")
-print("- datos.csv (Valores numéricos completos)")
-print("- correspondencia.txt (Relación número-nombre)")
+print("Process completed! Generated files:")
+print("- bordered_matrix.png (Matrix with numbered borders)")
+print("- data.csv (Complete numerical values)")
+print("- correspondence.txt (Number-name relationship)")
